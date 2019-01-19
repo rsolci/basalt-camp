@@ -1,4 +1,4 @@
-package com.basalt.camp.reservation
+package com.basalt.camp.business.reservation
 
 enum class ReservationStatus {
     ACTIVE, CANCELLED
