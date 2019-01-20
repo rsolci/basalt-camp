@@ -25,6 +25,7 @@ class ReservationServiceTest : BaseTest() {
         val createReservation = this.reservationService.createReservation(creationRequest)
 
         Assert.assertFalse(createReservation.success)
+        Assert.assertTrue(createReservation.messages.contains("Check-out date must be after check-in"))
     }
 
     @Test
@@ -38,6 +39,7 @@ class ReservationServiceTest : BaseTest() {
         val createReservation = this.reservationService.createReservation(creationRequest)
 
         Assert.assertFalse(createReservation.success)
+        Assert.assertTrue(createReservation.messages.contains("Check-out date must be after check-in"))
     }
 
     @Test
@@ -51,6 +53,7 @@ class ReservationServiceTest : BaseTest() {
         val createReservation = this.reservationService.createReservation(creationRequest)
 
         Assert.assertFalse(createReservation.success)
+        Assert.assertTrue(createReservation.messages.contains("Maximum reservation period is 3 days"))
     }
 
     @Test
@@ -64,6 +67,7 @@ class ReservationServiceTest : BaseTest() {
         val createReservation = this.reservationService.createReservation(creationRequest)
 
         Assert.assertFalse(createReservation.success)
+        Assert.assertTrue(createReservation.messages.contains("E-mail is required for reservation"))
     }
 
     @Test
@@ -77,5 +81,48 @@ class ReservationServiceTest : BaseTest() {
         val createReservation = this.reservationService.createReservation(creationRequest)
 
         Assert.assertFalse(createReservation.success)
+        Assert.assertTrue(createReservation.messages.contains("Name is required for reservation"))
+    }
+
+    @Test
+    fun reservationMustBeMadeAtLeastOneDayBefore() {
+        val creationRequest = ReservationCreationRequest(
+            email = "test@test.com",
+            name = "User Name",
+            checkIn = LocalDate.now(),
+            checkOut = LocalDate.now().plusDays(2)
+        )
+        val createReservation = this.reservationService.createReservation(creationRequest)
+
+        Assert.assertFalse(createReservation.success)
+        Assert.assertTrue(createReservation.messages.contains("Reservation need to be made at least one day before"))
+    }
+
+    @Test
+    fun cantCreateReservationForPastDates() {
+        val creationRequest = ReservationCreationRequest(
+            email = "test@test.com",
+            name = "User Name",
+            checkIn = LocalDate.now().minusDays(5),
+            checkOut = LocalDate.now().minusDays(3)
+        )
+        val createReservation = this.reservationService.createReservation(creationRequest)
+
+        Assert.assertFalse(createReservation.success)
+        Assert.assertTrue(createReservation.messages.contains("Reservation need to be made at least one day before"))
+    }
+
+    @Test
+    fun reservationCantBeMadeMoreThanOneMonthBefore() {
+        val creationRequest = ReservationCreationRequest(
+            email = "test@test.com",
+            name = "User Name",
+            checkIn = LocalDate.now().plusDays(45),
+            checkOut = LocalDate.now().plusDays(47)
+        )
+        val createReservation = this.reservationService.createReservation(creationRequest)
+
+        Assert.assertFalse(createReservation.success)
+        Assert.assertTrue(createReservation.messages.contains("Reservation can only be made up to 1 month before"))
     }
 }

@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.UUID
 
@@ -22,12 +24,29 @@ class ReservationService(
     }
 
     fun createReservation(reservationCreationRequest: ReservationCreationRequest): ReservationCreationResponse {
-        log.info("Atempting to create reservation ({})", reservationCreationRequest)
+        log.info("Attempting to create reservation ({})", reservationCreationRequest)
         val checkIn: Instant = reservationCreationRequest.checkIn.atTime(12, 0).atOffset(ZoneOffset.UTC).toInstant()
         val checkOut: Instant = reservationCreationRequest.checkOut.atTime(12, 0).atOffset(ZoneOffset.UTC).toInstant()
 
         var reservationCreationResponse = validateOrder(checkIn, checkOut)
         reservationCreationResponse = validateReservationInterval(checkIn, checkOut).merge(reservationCreationResponse)
+        if (checkIn.isBefore(Instant.now())) {
+            reservationCreationResponse =
+                reservationCreationResponse.merge(ReservationCreationResponse(false,
+                    listOf("Cant make reservations for past dates")))
+        }
+
+        if (Duration.between(LocalDate.now().atTime(12, 0).atOffset(ZoneOffset.UTC).toInstant(), checkIn).toDays() < 1) {
+            reservationCreationResponse =
+                reservationCreationResponse.merge(ReservationCreationResponse(false,
+                    listOf("Reservation need to be made at least one day before")))
+        }
+
+        if (Duration.between(LocalDate.now().atTime(12, 0).atOffset(ZoneOffset.UTC).toInstant(), checkIn).toDays() > 30) {
+            reservationCreationResponse =
+                reservationCreationResponse.merge(ReservationCreationResponse(false,
+                    listOf("Reservation can only be made up to 1 month before")))
+        }
 
         if (reservationCreationRequest.name.isBlank()) {
             reservationCreationResponse =
@@ -62,7 +81,7 @@ class ReservationService(
     fun validateOrder(start: Instant, end: Instant): ReservationCreationResponse {
         if (start.isAfter(end) || start == end) {
             log.warn("Check-In is after or equals Check-Out")
-            return ReservationCreationResponse(false, listOf("Check-out dat must be after check-in"))
+            return ReservationCreationResponse(false, listOf("Check-out date must be after check-in"))
         }
         return ReservationCreationResponse.emptySuccess()
     }
