@@ -8,4 +8,8 @@ class ReservationCreationRequest(
     val name: String,
     @DateTimeFormat(pattern = "yyyy-MM-dd") val checkIn: LocalDate,
     @DateTimeFormat(pattern = "yyyy-MM-dd") val checkOut: LocalDate
-)
+) {
+    override fun toString(): String {
+        return "ReservationCreationRequest(email='$email', name='$name', checkIn=$checkIn, checkOut=$checkOut)"
+    }
+}
