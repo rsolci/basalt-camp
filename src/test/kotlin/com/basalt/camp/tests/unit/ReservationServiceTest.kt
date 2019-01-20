@@ -3,13 +3,15 @@ package com.basalt.camp.tests.unit
 import com.basalt.camp.api.reservation.ReservationCreationRequest
 import com.basalt.camp.base.BaseTest
 import com.basalt.camp.business.reservation.ReservationService
+import com.basalt.camp.mocks.reservation.ReservationServiceMock
+import com.basalt.camp.mocks.user.UserServiceMock
 import org.junit.Assert
 import org.junit.Test
 import java.time.LocalDate
 
 class ReservationServiceTest : BaseTest() {
 
-    val reservationService = ReservationService()
+    private val reservationService = ReservationServiceMock()
 
     @Test
     fun checkInCanNotBeEqualCheckOut() {

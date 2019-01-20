@@ -4,6 +4,7 @@ import com.basalt.camp.api.reservation.ReservationCreationPayload
 import com.basalt.camp.api.reservation.ReservationCreationRequest
 import com.basalt.camp.api.reservation.ReservationCreationResponse
 import com.basalt.camp.business.user.User
+import com.basalt.camp.business.user.UserService
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.Duration
@@ -12,7 +13,10 @@ import java.time.ZoneOffset
 import java.util.UUID
 
 @Service
-class ReservationService {
+class ReservationService(
+    val userService: UserService,
+    val reservationRepository: ReservationRepository
+) {
     companion object {
         private val log = LoggerFactory.getLogger(ReservationService::class.java)
     }
@@ -26,25 +30,31 @@ class ReservationService {
         reservationCreationResponse = validateReservationInterval(checkIn, checkOut).merge(reservationCreationResponse)
 
         if (reservationCreationRequest.name.isBlank()) {
-            reservationCreationResponse = reservationCreationResponse.merge(ReservationCreationResponse(false, listOf("Name is required for reservation")))
+            reservationCreationResponse =
+                reservationCreationResponse.merge(ReservationCreationResponse(false,
+                    listOf("Name is required for reservation")))
         }
         if (reservationCreationRequest.email.isBlank()) {
-            reservationCreationResponse = reservationCreationResponse.merge(ReservationCreationResponse(false, listOf("E-mail is required for reservation")))
+            reservationCreationResponse =
+                reservationCreationResponse.merge(ReservationCreationResponse(false,
+                    listOf("E-mail is required for reservation")))
         }
 
         if (!reservationCreationResponse.success) {
             return reservationCreationResponse
         }
-        // TODO check existing user
+
+
+        // TODO cache user?
         val user =
-            User(id = UUID.randomUUID(),
+            userService.findByEmail(reservationCreationRequest.email) ?: userService.save(User(id = UUID.randomUUID(),
                 name = reservationCreationRequest.name,
-                email = reservationCreationRequest.email)
-        // TODO persist user
+                email = reservationCreationRequest.email))
 
         // TODO check availability
         val reservation = Reservation(id = UUID.randomUUID(), checkIn = checkIn, checkOut = checkOut, owner = user)
-        // TODO persist reservation
+
+        reservationRepository.save(reservation)
 
         return ReservationCreationResponse(success = true, payload = ReservationCreationPayload(reservation.id))
     }
