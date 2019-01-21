@@ -1,10 +1,8 @@
 package com.basalt.camp.tests.unit
 
-import com.basalt.camp.api.reservation.ReservationCreationRequest
+import com.basalt.camp.api.reservation.ReservationRequest
 import com.basalt.camp.base.BaseTest
-import com.basalt.camp.business.reservation.ReservationService
 import com.basalt.camp.mocks.reservation.ReservationServiceMock
-import com.basalt.camp.mocks.user.UserServiceMock
 import org.junit.Assert
 import org.junit.Test
 import java.time.LocalDate
@@ -16,7 +14,7 @@ class ReservationServiceTest : BaseTest() {
     @Test
     fun checkInCanNotBeEqualCheckOut() {
         val now = LocalDate.now()
-        val creationRequest = ReservationCreationRequest(
+        val creationRequest = ReservationRequest(
             email = "test@test.com",
             name = "User Name",
             checkIn = now,
@@ -30,7 +28,7 @@ class ReservationServiceTest : BaseTest() {
 
     @Test
     fun checkInCanNotBeAfterCheckOut() {
-        val creationRequest = ReservationCreationRequest(
+        val creationRequest = ReservationRequest(
             email = "test@test.com",
             name = "User Name",
             checkIn = LocalDate.now(),
@@ -44,7 +42,7 @@ class ReservationServiceTest : BaseTest() {
 
     @Test
     fun reservationPeriodCanNotBeGreaterThan3Days() {
-        val creationRequest = ReservationCreationRequest(
+        val creationRequest = ReservationRequest(
             email = "test@test.com",
             name = "User Name",
             checkIn = LocalDate.now(),
@@ -58,7 +56,7 @@ class ReservationServiceTest : BaseTest() {
 
     @Test
     fun emailMustBeFilled() {
-        val creationRequest = ReservationCreationRequest(
+        val creationRequest = ReservationRequest(
             email = "",
             name = "User Name",
             checkIn = LocalDate.now(),
@@ -72,7 +70,7 @@ class ReservationServiceTest : BaseTest() {
 
     @Test
     fun nameMustBeFilled() {
-        val creationRequest = ReservationCreationRequest(
+        val creationRequest = ReservationRequest(
             email = "test@test.com",
             name = "   ",
             checkIn = LocalDate.now(),
@@ -86,7 +84,7 @@ class ReservationServiceTest : BaseTest() {
 
     @Test
     fun reservationMustBeMadeAtLeastOneDayBefore() {
-        val creationRequest = ReservationCreationRequest(
+        val creationRequest = ReservationRequest(
             email = "test@test.com",
             name = "User Name",
             checkIn = LocalDate.now(),
@@ -100,7 +98,7 @@ class ReservationServiceTest : BaseTest() {
 
     @Test
     fun cantCreateReservationForPastDates() {
-        val creationRequest = ReservationCreationRequest(
+        val creationRequest = ReservationRequest(
             email = "test@test.com",
             name = "User Name",
             checkIn = LocalDate.now().minusDays(5),
@@ -114,7 +112,7 @@ class ReservationServiceTest : BaseTest() {
 
     @Test
     fun reservationCantBeMadeMoreThanOneMonthBefore() {
-        val creationRequest = ReservationCreationRequest(
+        val creationRequest = ReservationRequest(
             email = "test@test.com",
             name = "User Name",
             checkIn = LocalDate.now().plusDays(45),
