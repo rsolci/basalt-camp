@@ -106,6 +106,25 @@ class ReservationTest : BaseIntegrationTest() {
     }
 
     @Test
+    fun shouldBeAbleToCreateChainedReservations() {
+        val httpReservation1 = createValidReservation(1, 3)
+        val httpReservation2 = createValidReservation(3, 6)
+        val httpReservation3 = createValidReservation(6, 7)
+
+        Assert.assertEquals(HttpStatus.SC_OK, httpReservation1.status)
+        Assert.assertEquals(HttpStatus.SC_OK, httpReservation2.status)
+        Assert.assertEquals(HttpStatus.SC_OK, httpReservation3.status)
+
+
+        val reservation1 = httpReservation1.body
+        val reservation2= httpReservation1.body
+        val reservation3 = httpReservation1.body
+        Assert.assertTrue(reservation1.success)
+        Assert.assertTrue(reservation2.success)
+        Assert.assertTrue(reservation3.success)
+    }
+
+    @Test
     fun cancellingReservation() {
         val httpResponse =
                 createValidReservation()
@@ -123,8 +142,8 @@ class ReservationTest : BaseIntegrationTest() {
         Assert.assertEquals(ReservationStatus.CANCELLED, cancelledReservation.get().status)
     }
 
-    private fun createValidReservation(): HttpResponse<ReservationResponse> {
-        val creationRequest = createReservationRequest(5, 8)
+    private fun createValidReservation(forwardStartDays: Long = 5, forwardEndDays: Long = 8): HttpResponse<ReservationResponse> {
+        val creationRequest = createReservationRequest(forwardStartDays, forwardEndDays)
 
         return Unirest.post(apiUrl(ReservationRestController.PATH)).body(creationRequest)
                 .asObject(ReservationResponse::class.java)
