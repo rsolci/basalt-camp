@@ -33,6 +33,7 @@ class ReservationService(
         if (!reservationCreationResponse.success) {
             return reservationCreationResponse
         }
+        log.info("Basic field are valid")
 
         // TODO cache user?
         val user =
@@ -40,8 +41,14 @@ class ReservationService(
                         name = reservationRequest.name,
                         email = reservationRequest.email))
 
-        // TODO check availability
-        val reservation = Reservation(id = UUID.randomUUID(), checkIn = checkIn, checkOut = checkOut, owner = user)
+        val newReservationId = UUID.randomUUID()
+        val otherReservations = reservationRepository.findOtherReservationsWithinPeriod(newReservationId, checkIn, checkOut)
+        if (!otherReservations.isEmpty()) {
+            log.warn("Found overlapping reservations for this request")
+            return ReservationResponse(success = false, messages = listOf("This date range in unavailable"))
+        }
+
+        val reservation = Reservation(id = newReservationId, checkIn = checkIn, checkOut = checkOut, owner = user)
 
         reservationRepository.save(reservation)
 

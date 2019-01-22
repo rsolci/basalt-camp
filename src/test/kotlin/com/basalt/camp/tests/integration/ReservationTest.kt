@@ -12,10 +12,13 @@ import org.apache.http.HttpStatus
 import org.junit.Assert
 import org.junit.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.test.annotation.DirtiesContext
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 
+// FIXME this fixes database dirty between tests, but makes extremely slow
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class ReservationTest : BaseIntegrationTest() {
 
     @Autowired
@@ -42,12 +45,7 @@ class ReservationTest : BaseIntegrationTest() {
 
         val bookingId = (httpResponse.body.payload as ReservationCreationPayload).bookingId
 
-        val editRequest = ReservationJsonRequest(
-                email = "test@test.com",
-                name = "Good name",
-                checkIn = LocalDate.now().plusDays(5).toString(),
-                checkOut = LocalDate.now().plusDays(8).toString()
-        )
+        val editRequest = createReservationRequest(5, 8)
 
         val httpEditResponse = Unirest.put(apiUrl(ReservationRestController.PATH + ReservationRestController.ID))
                 .routeParam("id", bookingId.toString()).body(editRequest).asObject(ReservationResponse::class.java)
@@ -63,15 +61,58 @@ class ReservationTest : BaseIntegrationTest() {
         Assert.assertEquals(7, Duration.between(Instant.now(), reservation.get().checkOut).toDays())
     }
 
+    @Test
+    fun canNotCreateOverlappingToFutureReservations() {
+        createValidReservation()
+
+        val creationRequest = createReservationRequest(6, 9)
+        val httpResponse = Unirest.post(apiUrl(ReservationRestController.PATH)).body(creationRequest)
+                .asObject(ReservationResponse::class.java)
+
+        Assert.assertEquals(HttpStatus.SC_OK, httpResponse.status)
+        val reservationCreationResponse = httpResponse.body
+        Assert.assertFalse(reservationCreationResponse.success)
+    }
+
+    @Test
+    fun canNotCreateOverlappingToPastReservations() {
+        createValidReservation()
+
+        val creationRequest = createReservationRequest(4, 7)
+        val httpResponse = Unirest.post(apiUrl(ReservationRestController.PATH)).body(creationRequest)
+                .asObject(ReservationResponse::class.java)
+
+        Assert.assertEquals(HttpStatus.SC_OK, httpResponse.status)
+        val reservationCreationResponse = httpResponse.body
+        Assert.assertFalse(reservationCreationResponse.success)
+    }
+
+    @Test
+    fun canNotCreateOverlappingToMiddleReservations() {
+        createValidReservation()
+
+        val creationRequest = createReservationRequest(6, 7)
+        val httpResponse = Unirest.post(apiUrl(ReservationRestController.PATH)).body(creationRequest)
+                .asObject(ReservationResponse::class.java)
+
+        Assert.assertEquals(HttpStatus.SC_OK, httpResponse.status)
+        val reservationCreationResponse = httpResponse.body
+        Assert.assertFalse(reservationCreationResponse.success)
+    }
+
     private fun createValidReservation(): HttpResponse<ReservationResponse> {
-        val creationRequest = ReservationJsonRequest(
-                email = "test@test.com",
-                name = "Good name",
-                checkIn = LocalDate.now().plusDays(1).toString(),
-                checkOut = LocalDate.now().plusDays(3).toString()
-        )
+        val creationRequest = createReservationRequest(5, 8)
 
         return Unirest.post(apiUrl(ReservationRestController.PATH)).body(creationRequest)
                 .asObject(ReservationResponse::class.java)
+    }
+
+    private fun createReservationRequest(forwardStartDays: Long, forwardEndDays: Long): ReservationJsonRequest {
+        return ReservationJsonRequest(
+                email = "test@test.com",
+                name = "Good name",
+                checkIn = LocalDate.now().plusDays(forwardStartDays).toString(),
+                checkOut = LocalDate.now().plusDays(forwardEndDays).toString()
+        )
     }
 }
