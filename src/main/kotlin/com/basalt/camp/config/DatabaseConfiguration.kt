@@ -31,7 +31,7 @@ class DatabaseConfiguration {
         log.info("Stating postgres on port $port")
 
         val cachedRuntimeConfig =
-            EmbeddedPostgres.cachedRuntimeConfig(Paths.get(System.getProperty("java.io.tmpdir"), "embedded-postgres-movile-pay"))
+            EmbeddedPostgres.cachedRuntimeConfig(Paths.get("/tmp/", "embedded-postgres-basalt-camp"))
         val host = "localhost"
         val dbName = "basaltcamp"
         val username = "basalt"

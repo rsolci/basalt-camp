@@ -11,6 +11,7 @@ import com.mashape.unirest.http.HttpResponse
 import com.mashape.unirest.http.Unirest
 import org.apache.http.HttpStatus
 import org.junit.Assert
+import org.junit.Before
 import org.junit.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.annotation.DirtiesContext
@@ -18,12 +19,15 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 
-// FIXME this fixes database dirty between tests, but makes extremely slow
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class ReservationTest : BaseIntegrationTest() {
 
     @Autowired
     private lateinit var reservationRepository: ReservationRepository
+
+    @Before
+    fun cleanupReservations() {
+        reservationRepository.deleteAll()
+    }
 
     @Test
     fun shouldCreateReservation() {
