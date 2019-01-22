@@ -10,6 +10,7 @@ import com.basalt.camp.mocks.reservation.ReservationJsonRequest
 import com.mashape.unirest.http.HttpResponse
 import com.mashape.unirest.http.Unirest
 import org.apache.http.HttpStatus
+import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
@@ -24,7 +25,7 @@ class ReservationTest : BaseIntegrationTest() {
     @Autowired
     private lateinit var reservationRepository: ReservationRepository
 
-    @Before
+    @After
     fun cleanupReservations() {
         reservationRepository.deleteAll()
     }
