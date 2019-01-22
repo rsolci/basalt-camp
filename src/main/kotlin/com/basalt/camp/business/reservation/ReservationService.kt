@@ -62,11 +62,17 @@ class ReservationService(
         if (!reservationCreationResponse.success) {
             return reservationCreationResponse
         }
-        // TODO check availability
+
 
         val reservation = reservationRepository.findById(reservationId)
         if (reservation.isEmpty) {
             return ReservationResponse(false, listOf("Cant find reservation for identifier $reservationId"))
+        }
+        
+        val otherReservations = reservationRepository.findOtherReservationsWithinPeriod(reservationId, checkIn, checkOut)
+        if (!otherReservations.isEmpty()) {
+            log.warn("Found overlapping reservations for this request")
+            return ReservationResponse(success = false, messages = listOf("This date range in unavailable"))
         }
 
         val user =
