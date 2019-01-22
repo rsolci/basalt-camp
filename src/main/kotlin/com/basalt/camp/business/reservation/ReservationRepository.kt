@@ -14,4 +14,8 @@ interface ReservationRepository : JpaRepository<Reservation, UUID> {
     fun findOtherReservationsWithinPeriod(@Param("id") reservationId: UUID,
                                           @Param("start") start: Instant,
                                           @Param("end") end: Instant): List<Reservation>
+
+    @Query("SELECT r FROM Reservation r WHERE r.status = 'ACTIVE' AND (:end > r.checkIn  AND (:end < r.checkOut OR :start < r.checkOut)) ORDER BY r.checkIn")
+    fun findReservationsWithinPeriod(@Param("start") start: Instant,
+                                     @Param("end") end: Instant): List<Reservation>
 }

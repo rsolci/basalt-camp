@@ -1,8 +1,6 @@
 package com.basalt.camp.business.reservation
 
-import com.basalt.camp.api.reservation.ReservationCreationPayload
-import com.basalt.camp.api.reservation.ReservationRequest
-import com.basalt.camp.api.reservation.ReservationResponse
+import com.basalt.camp.api.reservation.*
 import com.basalt.camp.business.user.User
 import com.basalt.camp.business.user.UserService
 import org.slf4j.LoggerFactory
@@ -11,7 +9,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
-import java.util.UUID
+import java.util.*
 
 @Service
 class ReservationService(
@@ -106,6 +104,34 @@ class ReservationService(
         return ReservationResponse(true, emptyList())
     }
 
+    fun vacancy(start: LocalDate, end: LocalDate): VacancyResponse {
+        val startInstant: Instant = normalizeDateToMidDay(start)
+        val endInstant: Instant = normalizeDateToMidDay(end)
+
+        // TODO check cache first?
+        val reservations = reservationRepository.findReservationsWithinPeriod(startInstant, endInstant)
+
+        var lastStart = startInstant
+
+        val vacancyItems = mutableListOf<VacancyItem>()
+
+        reservations.forEach {
+            if (Duration.between(lastStart, it.checkIn).toDays() > 0) {
+                vacancyItems.add(VacancyItem(instantToLocalDate(lastStart), instantToLocalDate(it.checkIn)))
+            }
+            lastStart = it.checkOut
+        }
+
+        if (Duration.between(lastStart, endInstant).toDays() > 0) {
+            vacancyItems.add(VacancyItem(instantToLocalDate(lastStart), instantToLocalDate(endInstant)))
+        }
+        return VacancyResponse(
+                success = true,
+                messages = emptyList(),
+                payload = VacancyPayload(vacancyItems)
+        )
+    }
+
     private fun validateBasicFields(checkIn: Instant, checkOut: Instant, reservationRequest: ReservationRequest): ReservationResponse {
         var reservationCreationResponse = validateOrder(checkIn, checkOut)
         reservationCreationResponse = validateReservationInterval(checkIn, checkOut).merge(reservationCreationResponse)
@@ -155,6 +181,8 @@ class ReservationService(
         }
         return ReservationResponse.emptySuccess()
     }
+
+    private fun instantToLocalDate(checkIn: Instant) = LocalDate.ofInstant(checkIn, ZoneOffset.UTC)
 
     private fun normalizeDateToMidDay(localDate: LocalDate) =
             localDate.atTime(12, 0).atOffset(ZoneOffset.UTC).toInstant()

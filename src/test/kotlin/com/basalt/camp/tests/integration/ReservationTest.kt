@@ -2,6 +2,8 @@ package com.basalt.camp.tests.integration
 
 import com.basalt.camp.api.reservation.ReservationCreationPayload
 import com.basalt.camp.api.reservation.ReservationResponse
+import com.basalt.camp.api.reservation.VacancyPayload
+import com.basalt.camp.api.reservation.VacancyResponse
 import com.basalt.camp.base.BaseIntegrationTest
 import com.basalt.camp.business.reservation.ReservationRepository
 import com.basalt.camp.business.reservation.ReservationRestController
@@ -141,6 +143,32 @@ class ReservationTest : BaseIntegrationTest() {
         val cancelledReservation =
                 reservationRepository.findById(bookingId)
         Assert.assertEquals(ReservationStatus.CANCELLED, cancelledReservation.get().status)
+    }
+
+    @Test
+    fun vacancyTest() {
+        createValidReservation(1, 3)
+        createValidReservation(10, 13)
+        createValidReservation(13, 16)
+
+        val httpResponse = Unirest.get(apiUrl(ReservationRestController.PATH + ReservationRestController.VACANCY))
+                .asObject(VacancyResponse::class.java)
+
+        Assert.assertEquals(HttpStatus.SC_OK, httpResponse.status)
+        val vacancyResponse = httpResponse.body
+        Assert.assertTrue(vacancyResponse.success)
+
+        val vacancyList = (vacancyResponse.payload as VacancyPayload).vacancyList
+        Assert.assertEquals(3, vacancyList.size)
+
+        Assert.assertEquals(LocalDate.now(), vacancyList[0].start)
+        Assert.assertEquals(LocalDate.now().plusDays(1), vacancyList[0].end)
+
+        Assert.assertEquals(LocalDate.now().plusDays(3), vacancyList[1].start)
+        Assert.assertEquals(LocalDate.now().plusDays(10), vacancyList[1].end)
+
+        Assert.assertEquals(LocalDate.now().plusDays(16), vacancyList[2].start)
+        Assert.assertEquals(LocalDate.now().plusDays(30), vacancyList[2].end)
     }
 
     private fun createValidReservation(forwardStartDays: Long = 5, forwardEndDays: Long = 8): HttpResponse<ReservationResponse> {

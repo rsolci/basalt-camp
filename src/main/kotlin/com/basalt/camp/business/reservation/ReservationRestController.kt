@@ -3,8 +3,10 @@ package com.basalt.camp.business.reservation
 import com.basalt.camp.api.reservation.ReservationRequest
 import com.basalt.camp.api.reservation.ReservationResponse
 import com.basalt.camp.api.reservation.VacancyResponse
+import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.*
+import java.time.LocalDate
 import java.util.*
 
 @RestController
@@ -34,7 +36,8 @@ class ReservationRestController(
     }
 
     @GetMapping(path = [ReservationRestController.VACANCY])
-    fun vacancy(): VacancyResponse {
-        TODO()
+    fun vacancy(@DateTimeFormat(pattern = "yyyy-MM-dd") @RequestParam start: LocalDate?,
+                @DateTimeFormat(pattern = "yyyy-MM-dd") @RequestParam end: LocalDate?): VacancyResponse {
+        return reservationService.vacancy(start ?: LocalDate.now(), end ?: LocalDate.now().plusDays(30))
     }
 }
