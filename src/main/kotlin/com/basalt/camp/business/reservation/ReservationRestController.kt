@@ -25,4 +25,9 @@ class ReservationRestController(
     fun modify(@RequestBody reservationRequest: ReservationRequest, @PathVariable("id") reservationId: UUID): ReservationResponse {
         return reservationService.updateReservation(reservationId, reservationRequest)
     }
+
+    @DeleteMapping(path = [ReservationRestController.ID])
+    fun cancel(@PathVariable("id") reservationId: UUID): ReservationResponse {
+        return reservationService.cancelReservation(reservationId)
+    }
 }

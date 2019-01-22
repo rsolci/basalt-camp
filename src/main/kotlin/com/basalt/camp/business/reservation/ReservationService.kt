@@ -1,6 +1,5 @@
 package com.basalt.camp.business.reservation
 
-import com.basalt.camp.api.BaseResponse
 import com.basalt.camp.api.reservation.ReservationCreationPayload
 import com.basalt.camp.api.reservation.ReservationRequest
 import com.basalt.camp.api.reservation.ReservationResponse
@@ -81,9 +80,29 @@ class ReservationService(
                 id = reservationId,
                 checkIn = checkIn,
                 checkOut = checkOut,
-                owner = user
+                owner = user,
+                createdAt = reservation.get().createdAt
         )
         reservationRepository.save(newReservation)
+        return ReservationResponse(true, emptyList())
+    }
+
+    fun cancelReservation(reservationId: UUID): ReservationResponse {
+        val reservationOp = reservationRepository.findById(reservationId)
+        if (reservationOp.isEmpty) {
+            return ReservationResponse(false, listOf("Cant find reservation for identifier $reservationId"))
+        }
+
+        val reservation = reservationOp.get()
+        val cancelledReservation = Reservation(
+                id = reservation.id,
+                status = ReservationStatus.CANCELLED,
+                owner = reservation.owner,
+                checkIn = reservation.checkIn,
+                checkOut = reservation.checkOut,
+                createdAt = reservation.createdAt
+        )
+        reservationRepository.save(cancelledReservation)
         return ReservationResponse(true, emptyList())
     }
 

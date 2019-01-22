@@ -5,6 +5,7 @@ import com.basalt.camp.api.reservation.ReservationResponse
 import com.basalt.camp.base.BaseIntegrationTest
 import com.basalt.camp.business.reservation.ReservationRepository
 import com.basalt.camp.business.reservation.ReservationRestController
+import com.basalt.camp.business.reservation.ReservationStatus
 import com.basalt.camp.mocks.reservation.ReservationJsonRequest
 import com.mashape.unirest.http.HttpResponse
 import com.mashape.unirest.http.Unirest
@@ -98,6 +99,24 @@ class ReservationTest : BaseIntegrationTest() {
         Assert.assertEquals(HttpStatus.SC_OK, httpResponse.status)
         val reservationCreationResponse = httpResponse.body
         Assert.assertFalse(reservationCreationResponse.success)
+    }
+
+    @Test
+    fun cancellingReservation() {
+        val httpResponse =
+                createValidReservation()
+
+        val bookingId = (httpResponse.body.payload as ReservationCreationPayload).bookingId
+
+        val httpDelete = Unirest.delete(apiUrl(ReservationRestController.PATH + ReservationRestController.ID))
+                .routeParam("id", bookingId.toString()).asObject(ReservationResponse::class.java)
+        Assert.assertEquals(HttpStatus.SC_OK, httpDelete.status)
+        val reservationResponse = httpDelete.body
+        Assert.assertTrue(reservationResponse.success)
+
+        val cancelledReservation =
+                reservationRepository.findById(bookingId)
+        Assert.assertEquals(ReservationStatus.CANCELLED, cancelledReservation.get().status)
     }
 
     private fun createValidReservation(): HttpResponse<ReservationResponse> {
