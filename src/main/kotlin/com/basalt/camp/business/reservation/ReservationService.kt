@@ -4,6 +4,7 @@ import com.basalt.camp.api.reservation.*
 import com.basalt.camp.business.user.User
 import com.basalt.camp.business.user.UserService
 import org.slf4j.LoggerFactory
+import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import java.time.Duration
@@ -92,6 +93,7 @@ class ReservationService(
         return ReservationResponse(true, emptyList())
     }
 
+    @CacheEvict(value = ["reservations-in-period"], condition = "#result.success == true")
     fun cancelReservation(reservationId: UUID): ReservationResponse {
         val reservationOp = reservationRepository.findById(reservationId)
         if (reservationOp.isEmpty) {
