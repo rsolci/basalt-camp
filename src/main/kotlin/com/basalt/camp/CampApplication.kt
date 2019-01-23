@@ -7,7 +7,6 @@ import org.springframework.context.annotation.ComponentScan
 
 @SpringBootApplication
 @ComponentScan("com.basalt.camp")
-@EnableCaching
 class CampApplication
 
 fun main(args: Array<String>) {

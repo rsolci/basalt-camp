@@ -93,7 +93,6 @@ class ReservationService(
         return ReservationResponse(true, emptyList())
     }
 
-    @CacheEvict(value = ["reservations-in-period"], condition = "#result.success == true")
     fun cancelReservation(reservationId: UUID): ReservationResponse {
         val reservationOp = reservationRepository.findById(reservationId)
         if (reservationOp.isEmpty) {
@@ -113,7 +112,6 @@ class ReservationService(
         return ReservationResponse(true, emptyList())
     }
 
-    @Cacheable(value = ["reservations-in-period"])
     fun vacancy(start: LocalDate, end: LocalDate): VacancyResponse {
         val startInstant: Instant = normalizeDateToMidDay(start)
         val endInstant: Instant = normalizeDateToMidDay(end)
