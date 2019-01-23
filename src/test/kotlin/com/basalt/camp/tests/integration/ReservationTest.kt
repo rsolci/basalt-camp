@@ -169,6 +169,12 @@ class ReservationTest : BaseIntegrationTest() {
 
         Assert.assertEquals(LocalDate.now().plusDays(16), vacancyList[2].start)
         Assert.assertEquals(LocalDate.now().plusDays(30), vacancyList[2].end)
+
+        Unirest.get(apiUrl(ReservationRestController.PATH + ReservationRestController.VACANCY))
+                .asObject(VacancyResponse::class.java)
+
+        Unirest.get(apiUrl(ReservationRestController.PATH + ReservationRestController.VACANCY))
+                .asObject(VacancyResponse::class.java)
     }
 
     private fun createValidReservation(forwardStartDays: Long = 5, forwardEndDays: Long = 8): HttpResponse<ReservationResponse> {

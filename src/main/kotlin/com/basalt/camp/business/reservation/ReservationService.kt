@@ -4,6 +4,7 @@ import com.basalt.camp.api.reservation.*
 import com.basalt.camp.business.user.User
 import com.basalt.camp.business.user.UserService
 import org.slf4j.LoggerFactory
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import java.time.Duration
 import java.time.Instant
@@ -25,7 +26,7 @@ class ReservationService(
         val checkIn: Instant = normalizeDateToMidDay(reservationRequest.checkIn)
         val checkOut: Instant = normalizeDateToMidDay(reservationRequest.checkOut)
 
-        var reservationCreationResponse = validateBasicFields(checkIn, checkOut, reservationRequest)
+        val reservationCreationResponse = validateBasicFields(checkIn, checkOut, reservationRequest)
 
         if (!reservationCreationResponse.success) {
             return reservationCreationResponse
@@ -58,7 +59,7 @@ class ReservationService(
         val checkIn: Instant = normalizeDateToMidDay(reservationRequest.checkIn)
         val checkOut: Instant = normalizeDateToMidDay(reservationRequest.checkOut)
 
-        var reservationCreationResponse = validateBasicFields(checkIn, checkOut, reservationRequest)
+        val reservationCreationResponse = validateBasicFields(checkIn, checkOut, reservationRequest)
         if (!reservationCreationResponse.success) {
             return reservationCreationResponse
         }
@@ -68,7 +69,7 @@ class ReservationService(
         if (reservation.isEmpty) {
             return ReservationResponse(false, listOf("Cant find reservation for identifier $reservationId"))
         }
-        
+
         val otherReservations = reservationRepository.findOtherReservationsWithinPeriod(reservationId, checkIn, checkOut)
         if (!otherReservations.isEmpty()) {
             log.warn("Found overlapping reservations for this request")
@@ -110,11 +111,11 @@ class ReservationService(
         return ReservationResponse(true, emptyList())
     }
 
+    @Cacheable(value = ["reservations-in-period"])
     fun vacancy(start: LocalDate, end: LocalDate): VacancyResponse {
         val startInstant: Instant = normalizeDateToMidDay(start)
         val endInstant: Instant = normalizeDateToMidDay(end)
 
-        // TODO check cache first?
         val reservations = reservationRepository.findReservationsWithinPeriod(startInstant, endInstant)
 
         var lastStart = startInstant
