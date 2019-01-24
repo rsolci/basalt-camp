@@ -1,6 +1,7 @@
 package com.basalt.camp.business.reservation
 
 import com.basalt.camp.api.reservation.*
+import com.basalt.camp.business.cache.CacheRepository
 import com.basalt.camp.business.user.User
 import com.basalt.camp.business.user.UserService
 import org.slf4j.LoggerFactory
@@ -16,7 +17,8 @@ import java.util.*
 @Service
 class ReservationService(
         val userService: UserService,
-        val reservationRepository: ReservationRepository
+        val reservationRepository: ReservationRepository,
+        private val cacheRepository: CacheRepository
 ) {
     companion object {
         private val log = LoggerFactory.getLogger(ReservationService::class.java)
@@ -24,6 +26,26 @@ class ReservationService(
 
     fun createReservation(reservationRequest: ReservationRequest): ReservationResponse {
         log.info("Attempting to create reservation ({})", reservationRequest)
+
+        var locked = false
+
+        val lockedList = mutableListOf<LocalDate>()
+
+        // TODO add expiration time
+        reservationRequest.checkIn.datesUntil(reservationRequest.checkOut).forEach {
+            val canBeLocked = cacheRepository.setnx("RESERVATION_$it", ReservationLockStatus.LOCKED)
+            if (canBeLocked) lockedList.add(it)
+
+            locked = locked.or(canBeLocked)
+        }
+        if (locked) {
+            log.info("Lock for reservations found")
+            lockedList.forEach {
+                cacheRepository.delete("RESERVATION_$it")
+            }
+            return ReservationResponse(success = false, messages = listOf("This date range in unavailable"))
+        }
+
         val checkIn: Instant = normalizeDateToMidDay(reservationRequest.checkIn)
         val checkOut: Instant = normalizeDateToMidDay(reservationRequest.checkOut)
 
@@ -34,7 +56,6 @@ class ReservationService(
         }
         log.info("Basic field are valid")
 
-        // TODO cache user?
         val user =
                 userService.findByEmail(reservationRequest.email) ?: userService.save(User(id = UUID.randomUUID(),
                         name = reservationRequest.name,
@@ -50,6 +71,10 @@ class ReservationService(
         val reservation = Reservation(id = newReservationId, checkIn = checkIn, checkOut = checkOut, owner = user)
 
         reservationRepository.save(reservation)
+
+        lockedList.forEach {
+            cacheRepository.add("RESERVATION_$it", ReservationLockStatus.LOCKED)
+        }
 
         return ReservationResponse(success = true, payload = ReservationCreationPayload(reservation.id))
     }

@@ -1,5 +1,6 @@
 package com.basalt.camp.mocks.reservation
 
+import com.basalt.camp.business.cache.CacheRepository
 import com.basalt.camp.business.reservation.ReservationRepository
 import com.basalt.camp.business.reservation.ReservationService
 import com.basalt.camp.business.user.UserService
@@ -8,4 +9,4 @@ import org.mockito.Mockito
 
 class ReservationServiceMock(userService: UserService = UserServiceMock(),
                              reservationRepository: ReservationRepository = Mockito.mock(ReservationRepository::class.java)) :
-    ReservationService(userService, reservationRepository)
+    ReservationService(userService, reservationRepository, Mockito.mock(CacheRepository::class.java))
