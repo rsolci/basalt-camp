@@ -13,6 +13,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.*
+import kotlin.streams.toList
 
 @Service
 class ReservationService(
@@ -27,23 +28,16 @@ class ReservationService(
     fun createReservation(reservationRequest: ReservationRequest): ReservationResponse {
         log.info("Attempting to create reservation ({})", reservationRequest)
 
-        var locked = false
+        val lockKeys = reservationRequest.checkIn.datesUntil(reservationRequest.checkOut).toList()
+                .map { "RESERVATION_$it" to ReservationLockStatus.LOCKED }.toMap()
 
-        val lockedList = mutableListOf<LocalDate>()
+        val locked = !cacheRepository.msetnx(lockKeys)
 
-        // TODO add expiration time
-        reservationRequest.checkIn.datesUntil(reservationRequest.checkOut).forEach {
-            val canBeLocked = cacheRepository.setnx("RESERVATION_$it", ReservationLockStatus.LOCKED)
-            if (canBeLocked) lockedList.add(it)
-
-            locked = locked.or(canBeLocked)
-        }
         if (locked) {
             log.info("Lock for reservations found")
-            lockedList.forEach {
-                cacheRepository.delete("RESERVATION_$it")
-            }
             return ReservationResponse(success = false, messages = listOf("This date range in unavailable"))
+        } else {
+            lockKeys.keys.forEach { cacheRepository.expire(it, 30) }
         }
 
         val checkIn: Instant = normalizeDateToMidDay(reservationRequest.checkIn)
@@ -72,9 +66,7 @@ class ReservationService(
 
         reservationRepository.save(reservation)
 
-        lockedList.forEach {
-            cacheRepository.add("RESERVATION_$it", ReservationLockStatus.LOCKED)
-        }
+        lockKeys.keys.forEach { cacheRepository.set("RESERVATION_$it", ReservationLockStatus.RESERVED) }
 
         return ReservationResponse(success = true, payload = ReservationCreationPayload(reservation.id))
     }
@@ -134,6 +126,10 @@ class ReservationService(
                 createdAt = reservation.createdAt
         )
         reservationRepository.save(cancelledReservation)
+
+        instantToLocalDate(reservation.checkIn).datesUntil(instantToLocalDate(reservation.checkOut))
+                .forEach { cacheRepository.delete(reservationKey(it)) }
+
         return ReservationResponse(true, emptyList())
     }
 
@@ -218,4 +214,8 @@ class ReservationService(
 
     private fun normalizeDateToMidDay(localDate: LocalDate) =
             localDate.atTime(12, 0).atOffset(ZoneOffset.UTC).toInstant()
+
+    private fun reservationKey(it: LocalDate) = "RESERVATION_$it"
+
+
 }

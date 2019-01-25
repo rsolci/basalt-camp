@@ -12,7 +12,7 @@ class UserService(val userRepository: UserRepository, private val cacheManager: 
 
     fun save(user: User): User {
         val savedUser = userRepository.save(user)
-        cacheManager.add("USER_${user.email}", savedUser)
+        cacheManager.set("USER_${user.email}", savedUser)
         return savedUser
     }
 
@@ -25,7 +25,7 @@ class UserService(val userRepository: UserRepository, private val cacheManager: 
         } else {
             LOG.info("Finding user {}", email)
             val user = userRepository.findOneByEmail(email)
-            user?.let { cacheManager.add(userKey, it) }
+            user?.let { cacheManager.set(userKey, it) }
             user
         }
     }

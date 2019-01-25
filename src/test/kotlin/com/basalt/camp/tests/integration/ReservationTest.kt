@@ -5,6 +5,7 @@ import com.basalt.camp.api.reservation.ReservationResponse
 import com.basalt.camp.api.reservation.VacancyPayload
 import com.basalt.camp.api.reservation.VacancyResponse
 import com.basalt.camp.base.BaseIntegrationTest
+import com.basalt.camp.business.cache.CacheRepository
 import com.basalt.camp.business.reservation.ReservationRepository
 import com.basalt.camp.business.reservation.ReservationRestController
 import com.basalt.camp.business.reservation.ReservationStatus
@@ -27,9 +28,13 @@ class ReservationTest : BaseIntegrationTest() {
     @Autowired
     private lateinit var reservationRepository: ReservationRepository
 
+    @Autowired
+    private lateinit var cacheRepository: CacheRepository
+
     @After
     fun cleanupReservations() {
         reservationRepository.deleteAll()
+        cacheRepository.keys("*").forEach { cacheRepository.delete(it) }
     }
 
     @Test
