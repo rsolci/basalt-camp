@@ -27,6 +27,11 @@ class CacheRepository(
         return redisConnection.sync().msetnx(strValues)
     }
 
+    fun mset(values: Map<String, Any>) {
+        val strValues = values.mapValues { objectMapper.writeValueAsString(it.value) }
+        redisConnection.sync().mset(strValues)
+    }
+
     fun delete(key: String) {
         redisConnection.sync().del(key)
     }

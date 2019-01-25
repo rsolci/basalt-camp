@@ -28,8 +28,9 @@ class ReservationService(
     fun createReservation(reservationRequest: ReservationRequest): ReservationResponse {
         log.info("Attempting to create reservation ({})", reservationRequest)
 
+        val newReservationId = UUID.randomUUID()
         val lockKeys = reservationRequest.checkIn.datesUntil(reservationRequest.checkOut).toList()
-                .map { "RESERVATION_$it" to ReservationLockStatus.LOCKED }.toMap()
+                .map { reservationKey(it) to newReservationId }.toMap()
 
         val locked = !cacheRepository.msetnx(lockKeys)
 
@@ -55,7 +56,6 @@ class ReservationService(
                         name = reservationRequest.name,
                         email = reservationRequest.email))
 
-        val newReservationId = UUID.randomUUID()
         val otherReservations = reservationRepository.findOtherReservationsWithinPeriod(newReservationId, checkIn, checkOut)
         if (!otherReservations.isEmpty()) {
             log.warn("Found overlapping reservations for this request")
@@ -66,13 +66,28 @@ class ReservationService(
 
         reservationRepository.save(reservation)
 
-        lockKeys.keys.forEach { cacheRepository.set("RESERVATION_$it", ReservationLockStatus.RESERVED) }
+        lockKeys.keys.forEach { cacheRepository.set(it, newReservationId) }
 
         return ReservationResponse(success = true, payload = ReservationCreationPayload(reservation.id))
     }
 
     fun updateReservation(reservationId: UUID, reservationRequest: ReservationRequest): ReservationResponse {
         log.info("Attempting to edit reservation {} to {}", reservationId, reservationRequest)
+
+        val lockedUUIDs = reservationRequest.checkIn.datesUntil(reservationRequest.checkOut).toList().map {
+            cacheRepository.get(reservationKey(it), UUID::class.java)
+        }.toList()
+
+        if (lockedUUIDs.any { it != reservationId }) {
+            log.warn("Found overlapping reservations for this request")
+            return ReservationResponse(success = false, messages = listOf("This date range in unavailable"))
+        } else {
+            val lockKeys = reservationRequest.checkIn.datesUntil(reservationRequest.checkOut).toList()
+                    .map { reservationKey(it) to reservationId }.toMap()
+
+            cacheRepository.msetnx(lockKeys)
+            lockKeys.keys.forEach { cacheRepository.expire(it, 30) }
+        }
 
         val checkIn: Instant = normalizeDateToMidDay(reservationRequest.checkIn)
         val checkOut: Instant = normalizeDateToMidDay(reservationRequest.checkOut)
@@ -81,7 +96,6 @@ class ReservationService(
         if (!reservationCreationResponse.success) {
             return reservationCreationResponse
         }
-
 
         val reservation = reservationRepository.findById(reservationId)
         if (reservation.isEmpty) {
@@ -107,6 +121,11 @@ class ReservationService(
                 createdAt = reservation.get().createdAt
         )
         reservationRepository.save(newReservation)
+
+        val lockKeys = reservationRequest.checkIn.datesUntil(reservationRequest.checkOut).toList()
+                .map { reservationKey(it) to reservationId }.toMap()
+        cacheRepository.mset(lockKeys)
+
         return ReservationResponse(true, emptyList())
     }
 
