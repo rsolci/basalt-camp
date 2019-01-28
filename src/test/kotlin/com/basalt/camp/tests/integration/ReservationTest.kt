@@ -15,10 +15,8 @@ import com.mashape.unirest.http.Unirest
 import org.apache.http.HttpStatus
 import org.junit.After
 import org.junit.Assert
-import org.junit.Before
 import org.junit.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.test.annotation.DirtiesContext
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -174,6 +172,30 @@ class ReservationTest : BaseIntegrationTest() {
 
         Assert.assertEquals(LocalDate.now().plusDays(16), vacancyList[2].start)
         Assert.assertEquals(LocalDate.now().plusDays(30), vacancyList[2].end)
+    }
+
+    @Test
+    fun shouldBeAbleToCreateReservationIfPreviousHasBeenCancelled() {
+        val httpFirstCreation =
+                createValidReservation()
+
+        val bookingId = (httpFirstCreation.body.payload as ReservationCreationPayload).bookingId
+
+        val httpDelete = Unirest.delete(apiUrl(ReservationRestController.PATH + ReservationRestController.ID))
+                .routeParam("id", bookingId.toString()).asObject(ReservationResponse::class.java)
+        Assert.assertEquals(HttpStatus.SC_OK, httpDelete.status)
+        val reservationResponse = httpDelete.body
+        Assert.assertTrue(reservationResponse.success)
+
+        val cancelledReservation =
+                reservationRepository.findById(bookingId)
+        Assert.assertEquals(ReservationStatus.CANCELLED, cancelledReservation.get().status)
+
+        val httpSecondCreation =
+                createValidReservation()
+        Assert.assertEquals(HttpStatus.SC_OK, httpSecondCreation.status)
+        val reservation = httpSecondCreation.body
+        Assert.assertTrue(reservation.success)
     }
 
     private fun createValidReservation(forwardStartDays: Long = 5, forwardEndDays: Long = 8): HttpResponse<ReservationResponse> {

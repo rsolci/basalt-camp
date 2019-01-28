@@ -8,10 +8,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
-import java.time.Duration
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
+import java.time.*
 import java.util.*
 import kotlin.streams.toList
 
@@ -30,7 +27,10 @@ class ReservationService(
 
         val newReservationId = UUID.randomUUID()
         val lockKeys = reservationRequest.checkIn.datesUntil(reservationRequest.checkOut).toList()
-                .map { reservationKey(it) to newReservationId }.toMap()
+                .map {
+                    log.info("$it")
+                    reservationKey(it) to newReservationId
+                }.toMap()
 
         val locked = !cacheRepository.msetnx(lockKeys)
 
@@ -153,6 +153,7 @@ class ReservationService(
     }
 
     fun vacancy(start: LocalDate, end: LocalDate): VacancyResponse {
+        log.info("Getting reservations from {} and {}", start, end)
         val startInstant: Instant = normalizeDateToMidDay(start)
         val endInstant: Instant = normalizeDateToMidDay(end)
 
