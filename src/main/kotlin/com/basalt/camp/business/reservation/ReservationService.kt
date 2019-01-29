@@ -2,14 +2,18 @@ package com.basalt.camp.business.reservation
 
 import com.basalt.camp.api.reservation.*
 import com.basalt.camp.business.cache.CacheRepository
+import com.basalt.camp.business.cache.OccupationCache
 import com.basalt.camp.business.user.User
 import com.basalt.camp.business.user.UserService
 import org.slf4j.LoggerFactory
-import org.springframework.cache.annotation.CacheEvict
-import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
-import java.time.*
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.util.*
+import java.util.stream.Collectors
 import kotlin.streams.toList
 
 @Service
@@ -154,30 +158,57 @@ class ReservationService(
 
     fun vacancy(start: LocalDate, end: LocalDate): VacancyResponse {
         log.info("Getting reservations from {} and {}", start, end)
-        val startInstant: Instant = normalizeDateToMidDay(start)
-        val endInstant: Instant = normalizeDateToMidDay(end)
 
-        val reservations = reservationRepository.findReservationsWithinPeriod(startInstant, endInstant)
+        val vacancyCache = cacheRepository.get("OCCUPATION", OccupationCache::class.java) ?:
+            rebuildCache(start, end)
 
-        var lastStart = startInstant
 
-        val vacancyItems = mutableListOf<VacancyItem>()
+        val vacancyItems = createVacancyListBasedOnOcupationCache(start, end, vacancyCache)
 
-        reservations.forEach {
-            if (Duration.between(lastStart, it.checkIn).toDays() > 0) {
-                vacancyItems.add(VacancyItem(instantToLocalDate(lastStart), instantToLocalDate(it.checkIn)))
-            }
-            lastStart = it.checkOut
-        }
-
-        if (Duration.between(lastStart, endInstant).toDays() > 0) {
-            vacancyItems.add(VacancyItem(instantToLocalDate(lastStart), instantToLocalDate(endInstant)))
-        }
         return VacancyResponse(
                 success = true,
                 messages = emptyList(),
                 payload = VacancyPayload(vacancyItems)
         )
+    }
+
+    private fun createVacancyListBasedOnOcupationCache(start: LocalDate, end: LocalDate, occupationCache: OccupationCache): MutableList<VacancyItem> {
+        val vacancyItems = mutableListOf<VacancyItem>()
+
+        var firstFreeDate: LocalDate? = null
+        start.datesUntil(end).forEach {
+            if (occupationCache.reservedDates[it] == true) {
+                if (firstFreeDate != null && firstFreeDate!!.until(it, ChronoUnit.DAYS) != 0L) {
+                    vacancyItems.add(VacancyItem(firstFreeDate!!, it))
+                    firstFreeDate = null
+                }
+            } else {
+                if (firstFreeDate == null) firstFreeDate = it
+            }
+        }
+        if (firstFreeDate != null && firstFreeDate!!.until(end, ChronoUnit.DAYS) > 0) {
+            vacancyItems.add(VacancyItem(firstFreeDate!!, end))
+        }
+        return vacancyItems
+    }
+
+    private fun rebuildCache(start: LocalDate, end: LocalDate): OccupationCache {
+        log.info("Rebuilding vacancy cache")
+        val startInstant: Instant = normalizeDateToMidDay(start)
+        val endInstant: Instant = normalizeDateToMidDay(end)
+
+        val reservations = reservationRepository.findReservationsWithinPeriod(startInstant, endInstant)
+
+        val cache = start.datesUntil(end).map {
+            val today = normalizeDateToMidDay(it)
+            val reservedToday = reservations.fold(false) { reserved, reservation ->
+                reserved || ((today.isAfter(reservation.checkIn) || today == reservation.checkIn) && today.isBefore(reservation.checkOut))
+            }
+            it to reservedToday
+        }.collect(Collectors.toMap(Pair<LocalDate, Boolean>::first, Pair<LocalDate, Boolean>::second))
+        val occupationCache = OccupationCache(reservedDates = cache)
+        cacheRepository.set("OCCUPATION", occupationCache)
+        return occupationCache
     }
 
     private fun validateBasicFields(checkIn: Instant, checkOut: Instant, reservationRequest: ReservationRequest): ReservationResponse {
