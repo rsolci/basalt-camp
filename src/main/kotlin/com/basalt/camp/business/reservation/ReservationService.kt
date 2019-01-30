@@ -3,6 +3,7 @@ package com.basalt.camp.business.reservation
 import com.basalt.camp.api.reservation.*
 import com.basalt.camp.business.cache.CacheRepository
 import com.basalt.camp.business.cache.OccupationCache
+import com.basalt.camp.business.cache.VacancyCache
 import com.basalt.camp.business.user.User
 import com.basalt.camp.business.user.UserService
 import org.slf4j.LoggerFactory
@@ -159,17 +160,49 @@ class ReservationService(
     fun vacancy(start: LocalDate, end: LocalDate): VacancyResponse {
         log.info("Getting reservations from {} and {}", start, end)
 
-        val vacancyCache = cacheRepository.get("OCCUPATION", OccupationCache::class.java) ?:
-            rebuildCache(start, end)
+//        val occupationCache = cacheRepository.get("OCCUPATION", OccupationCache::class.java) ?:
+//            rebuildCache(start, end)
+
+        val vacancyCache = cacheRepository.get("VACANCY", VacancyCache::class.java) ?: rebuildVacancyCache(start, end)
+
+        val allVacancies = vacancyCache.vacancyItemList
+
+        val vacanciesForPeriod = allVacancies.filter { it.start >= start && it.start < end }
 
 
-        val vacancyItems = createVacancyListBasedOnOcupationCache(start, end, vacancyCache)
+//        val vacancyItems = createVacancyListBasedOnOcupationCache(start, end, occupationCache)
 
         return VacancyResponse(
                 success = true,
                 messages = emptyList(),
-                payload = VacancyPayload(vacancyItems)
+                payload = VacancyPayload(vacanciesForPeriod)
         )
+    }
+
+    private fun rebuildVacancyCache(start: LocalDate, end: LocalDate): VacancyCache {
+        log.info("Rebuilding vacancy cache")
+        val startInstant: Instant = normalizeDateToMidDay(start)
+        val endInstant: Instant = normalizeDateToMidDay(end)
+
+        val reservations = reservationRepository.findReservationsWithinPeriod(startInstant, endInstant)
+
+        var lastStart = startInstant
+
+        val vacancyItems = mutableListOf<VacancyItem>()
+
+        reservations.forEach {
+            if (Duration.between(lastStart, it.checkIn).toDays() > 0) {
+                vacancyItems.add(VacancyItem(instantToLocalDate(lastStart), instantToLocalDate(it.checkIn)))
+            }
+            lastStart = it.checkOut
+        }
+
+        if (Duration.between(lastStart, endInstant).toDays() > 0) {
+            vacancyItems.add(VacancyItem(instantToLocalDate(lastStart), instantToLocalDate(endInstant)))
+        }
+        val vacancyCache = VacancyCache(vacancyItems)
+        cacheRepository.set("VACANCY", vacancyCache)
+        return vacancyCache
     }
 
     private fun createVacancyListBasedOnOcupationCache(start: LocalDate, end: LocalDate, occupationCache: OccupationCache): MutableList<VacancyItem> {
