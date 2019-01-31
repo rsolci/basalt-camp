@@ -2,7 +2,6 @@ package com.basalt.camp.business.reservation
 
 import com.basalt.camp.api.reservation.*
 import com.basalt.camp.business.cache.CacheRepository
-import com.basalt.camp.business.cache.OccupationCache
 import com.basalt.camp.business.cache.VacancyCache
 import com.basalt.camp.business.user.User
 import com.basalt.camp.business.user.UserService
@@ -12,9 +11,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
-import java.time.temporal.ChronoUnit
 import java.util.*
-import java.util.stream.Collectors
 import kotlin.streams.toList
 
 @Service
@@ -72,6 +69,8 @@ class ReservationService(
         reservationRepository.save(reservation)
 
         lockKeys.keys.forEach { cacheRepository.set(it, newReservationId) }
+
+        evictVacancyCache()
 
         return ReservationResponse(success = true, payload = ReservationCreationPayload(reservation.id))
     }
@@ -131,6 +130,8 @@ class ReservationService(
                 .map { reservationKey(it) to reservationId }.toMap()
         cacheRepository.mset(lockKeys)
 
+        evictVacancyCache()
+
         return ReservationResponse(true, emptyList())
     }
 
@@ -154,14 +155,13 @@ class ReservationService(
         instantToLocalDate(reservation.checkIn).datesUntil(instantToLocalDate(reservation.checkOut))
                 .forEach { cacheRepository.delete(reservationKey(it)) }
 
+        evictVacancyCache()
+
         return ReservationResponse(true, emptyList())
     }
 
     fun vacancy(start: LocalDate, end: LocalDate): VacancyResponse {
         log.info("Getting reservations from {} and {}", start, end)
-
-//        val occupationCache = cacheRepository.get("OCCUPATION", OccupationCache::class.java) ?:
-//            rebuildCache(start, end)
 
         val vacancyCache = cacheRepository.get("VACANCY", VacancyCache::class.java) ?: rebuildVacancyCache(start, end)
 
@@ -169,14 +169,15 @@ class ReservationService(
 
         val vacanciesForPeriod = allVacancies.filter { it.start >= start && it.start < end }
 
-
-//        val vacancyItems = createVacancyListBasedOnOcupationCache(start, end, occupationCache)
-
         return VacancyResponse(
                 success = true,
                 messages = emptyList(),
                 payload = VacancyPayload(vacanciesForPeriod)
         )
+    }
+
+    private fun evictVacancyCache() {
+        cacheRepository.delete("VACANCY")
     }
 
     private fun rebuildVacancyCache(start: LocalDate, end: LocalDate): VacancyCache {
@@ -205,44 +206,6 @@ class ReservationService(
         return vacancyCache
     }
 
-    private fun createVacancyListBasedOnOcupationCache(start: LocalDate, end: LocalDate, occupationCache: OccupationCache): MutableList<VacancyItem> {
-        val vacancyItems = mutableListOf<VacancyItem>()
-
-        var firstFreeDate: LocalDate? = null
-        start.datesUntil(end).forEach {
-            if (occupationCache.reservedDates[it] == true) {
-                if (firstFreeDate != null && firstFreeDate!!.until(it, ChronoUnit.DAYS) != 0L) {
-                    vacancyItems.add(VacancyItem(firstFreeDate!!, it))
-                    firstFreeDate = null
-                }
-            } else {
-                if (firstFreeDate == null) firstFreeDate = it
-            }
-        }
-        if (firstFreeDate != null && firstFreeDate!!.until(end, ChronoUnit.DAYS) > 0) {
-            vacancyItems.add(VacancyItem(firstFreeDate!!, end))
-        }
-        return vacancyItems
-    }
-
-    private fun rebuildCache(start: LocalDate, end: LocalDate): OccupationCache {
-        log.info("Rebuilding vacancy cache")
-        val startInstant: Instant = normalizeDateToMidDay(start)
-        val endInstant: Instant = normalizeDateToMidDay(end)
-
-        val reservations = reservationRepository.findReservationsWithinPeriod(startInstant, endInstant)
-
-        val cache = start.datesUntil(end).map {
-            val today = normalizeDateToMidDay(it)
-            val reservedToday = reservations.fold(false) { reserved, reservation ->
-                reserved || ((today.isAfter(reservation.checkIn) || today == reservation.checkIn) && today.isBefore(reservation.checkOut))
-            }
-            it to reservedToday
-        }.collect(Collectors.toMap(Pair<LocalDate, Boolean>::first, Pair<LocalDate, Boolean>::second))
-        val occupationCache = OccupationCache(reservedDates = cache)
-        cacheRepository.set("OCCUPATION", occupationCache)
-        return occupationCache
-    }
 
     private fun validateBasicFields(checkIn: Instant, checkOut: Instant, reservationRequest: ReservationRequest): ReservationResponse {
         var reservationCreationResponse = validateOrder(checkIn, checkOut)

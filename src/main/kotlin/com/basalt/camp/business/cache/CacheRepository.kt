@@ -33,7 +33,7 @@ class CacheRepository(
     }
 
     fun delete(key: String) {
-        redisConnection.sync().del(key)
+        redisConnection.async().del(key)
     }
 
     fun <T> get(key:String, clazz: Class<T>): T? {
