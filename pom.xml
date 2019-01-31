@@ -20,7 +20,7 @@
         <postgresql-embedded.version>2.9</postgresql-embedded.version>
 		<jedis.version>2.9.0</jedis.version>
 		<cache2k-version>1.2.0.Final</cache2k-version>
-		<lettuce.version>5.0.5.RELEASE</lettuce.version>
+		<lettuce.version>5.1.3.RELEASE</lettuce.version>
 		<springboot.version>2.1.2.RELEASE</springboot.version>
 	</properties>
 
@@ -61,7 +61,6 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-redis</artifactId>
-			<version>2.1.2.RELEASE</version>
 		</dependency>
 		<dependency>
             <groupId>com.mashape.unirest</groupId>
@@ -72,12 +71,6 @@
 			<groupId>com.github.kstyrc</groupId>
 			<artifactId>embedded-redis</artifactId>
 			<version>0.6</version>
-		</dependency>
-
-		<dependency>
-			<groupId>redis.clients</groupId>
-			<artifactId>jedis</artifactId>
-			<version>${jedis.version}</version>
 		</dependency>
 
 		<dependency>
@@ -95,6 +88,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>de.flapdoodle.embed</groupId>
+			<artifactId>de.flapdoodle.embed.process</artifactId>
+			<version>2.0.3</version>
 		</dependency>
 	</dependencies>
 
