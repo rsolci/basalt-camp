@@ -20,7 +20,7 @@ import java.io.IOException
     classes = [CampApplication::class]
 )
 @RunWith(SpringRunner::class)
-class BaseIntegrationTest : BaseTest() {
+class BaseIntegration : BaseTest() {
     companion object {
         var url: String = ""
 
@@ -71,6 +71,6 @@ class BaseIntegrationTest : BaseTest() {
     }
 
     fun apiUrl(path: String): String {
-        return BaseIntegrationTest.url + path
+        return BaseIntegration.url + path
     }
 }

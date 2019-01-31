@@ -4,7 +4,7 @@ import com.basalt.camp.api.reservation.ReservationCreationPayload
 import com.basalt.camp.api.reservation.ReservationResponse
 import com.basalt.camp.api.reservation.VacancyPayload
 import com.basalt.camp.api.reservation.VacancyResponse
-import com.basalt.camp.base.BaseIntegrationTest
+import com.basalt.camp.base.BaseIntegration
 import com.basalt.camp.business.cache.CacheRepository
 import com.basalt.camp.business.reservation.ReservationRepository
 import com.basalt.camp.business.reservation.ReservationRestController
@@ -21,7 +21,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 
-class ReservationTest : BaseIntegrationTest() {
+class ReservationTest : BaseIntegration() {
 
     @Autowired
     private lateinit var reservationRepository: ReservationRepository
