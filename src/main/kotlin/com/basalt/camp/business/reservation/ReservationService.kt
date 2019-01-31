@@ -27,6 +27,15 @@ class ReservationService(
     fun createReservation(reservationRequest: ReservationRequest): ReservationResponse {
         log.info("Attempting to create reservation ({})", reservationRequest)
 
+        val checkIn: Instant = normalizeDateToMidDay(reservationRequest.checkIn)
+        val checkOut: Instant = normalizeDateToMidDay(reservationRequest.checkOut)
+
+        val reservationCreationResponse = validateBasicFields(checkIn, checkOut, reservationRequest)
+        if (!reservationCreationResponse.success) {
+            return reservationCreationResponse
+        }
+        log.info("Basic field are valid")
+
         val newReservationId = UUID.randomUUID()
         val lockKeys = reservationRequest.checkIn.datesUntil(reservationRequest.checkOut).toList()
                 .map {
@@ -42,16 +51,6 @@ class ReservationService(
         } else {
             lockKeys.keys.forEach { cacheRepository.expire(it, 30) }
         }
-
-        val checkIn: Instant = normalizeDateToMidDay(reservationRequest.checkIn)
-        val checkOut: Instant = normalizeDateToMidDay(reservationRequest.checkOut)
-
-        val reservationCreationResponse = validateBasicFields(checkIn, checkOut, reservationRequest)
-
-        if (!reservationCreationResponse.success) {
-            return reservationCreationResponse
-        }
-        log.info("Basic field are valid")
 
         val user =
                 userService.findByEmail(reservationRequest.email) ?: userService.save(User(id = UUID.randomUUID(),
